@@ -336,17 +336,22 @@ struct
                 List.app (fn k => Array.update (z, k, Word8.xorb (Array.sub (z, k), Array.sub (v, k))))
                   (List.tabulate (16, fn k => k))
               else ();
-              (* v := v >> 1 in GF(2^128) *)
-              let val msb = Word8.andb (Array.sub (v, 15), 0w1) <> 0w0
+              (* v := v >> 1 in GF(2^128). V is a 128-bit value stored
+                 big-endian across 16 bytes (byte 0 = most significant), and a
+                 one-bit right shift moves bit i to bit i+1, so each byte's new
+                 high bit is the old LOW bit of the more-significant neighbour
+                 (byte k-1). Iterate k high->low so v[k-1] is still the old
+                 value when read. The bit shifted out is the LSB of byte 15. *)
+              let val outBit = Word8.andb (Array.sub (v, 15), 0w1) <> 0w0
               in
                 List.app (fn k =>
                   Array.update (v, k,
                     Word8.orb (
                       Word8.>> (Array.sub (v, k), 0w1),
-                      if k < 15 then Word8.<< (Word8.andb (Array.sub (v, k+1), 0w1), 0w7)
+                      if k > 0 then Word8.<< (Word8.andb (Array.sub (v, k-1), 0w1), 0w7)
                       else 0w0)))
                   (List.rev (List.tabulate (16, fn k => k)));
-                if msb then Array.update (v, 0, Word8.xorb (Array.sub (v, 0), 0wxe1))
+                if outBit then Array.update (v, 0, Word8.xorb (Array.sub (v, 0), 0wxe1))
                 else ()
               end
             end)

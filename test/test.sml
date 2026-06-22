@@ -82,6 +82,38 @@ struct
       val () = check "wrong aad fails" (AesGcm.open' key iv "wrong" sealed = NONE)
     in () end
 
+  (* Byte-exact GCM known-answer tests (McGrew & Viega, "The Galois/Counter
+     Mode of Operation (GCM)" Appendix B; also the de-facto NIST GCM vectors).
+     These pin the GHASH/tag computation so it cannot silently regress to a
+     non-interoperable tag while still round-tripping. *)
+  fun runGcmKat () =
+    let
+      val () = section "AES-GCM known-answer (McGrew/NIST)"
+      val iv  = fromHex "cafebabefacedbaddecaf888"
+      val pt  = fromHex ("d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a3"
+                       ^ "18a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39")
+      val aad = fromHex "feedfacedeadbeeffeedfacedeadbeefabaddad2"
+      (* Test Case 4: AES-128-GCM *)
+      val k128 = fromHex "feffe9928665731c6d6a8f9467308308"
+      val exp128 = "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e"
+                 ^ "21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091"
+                 ^ "5bc94fbc3221a5db94fae95ae7121a47"
+      val () = checkString "AES-128-GCM seal (case 4)"
+                 (exp128, toHex (AesGcm.seal k128 iv aad pt))
+      val () = check "AES-128-GCM open (case 4)"
+                 (AesGcm.open' k128 iv aad (fromHex exp128) = SOME pt)
+      (* Test Case 16: AES-256-GCM *)
+      val k256 = fromHex ("feffe9928665731c6d6a8f9467308308"
+                        ^ "feffe9928665731c6d6a8f9467308308")
+      val exp256 = "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa"
+                 ^ "8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662"
+                 ^ "76fc6ece0f4e1768cddf8853bb2d551b"
+      val () = checkString "AES-256-GCM seal (case 16)"
+                 (exp256, toHex (AesGcm.seal k256 iv aad pt))
+      val () = check "AES-256-GCM open (case 16)"
+                 (AesGcm.open' k256 iv aad (fromHex exp256) = SOME pt)
+    in () end
+
   fun runRoundtrip () =
     let
       val () = section "AES roundtrip properties"
@@ -104,5 +136,6 @@ struct
     ; runCbc ()
     ; runCtr ()
     ; runGcm ()
+    ; runGcmKat ()
     ; runRoundtrip () )
 end
