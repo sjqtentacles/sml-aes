@@ -18,9 +18,13 @@ val iv    = (* 12-byte IV *)
 val aad   = "additional data"
 val pt    = "plaintext"
 
-val {ciphertext, tag} = AesGcm.encrypt key iv aad pt
-val recovered         = AesGcm.decrypt key iv aad ciphertext tag
-(* decrypt raises Fail on authentication failure *)
+(* seal returns ciphertext concatenated with the 16-byte tag
+   (so String.size sealed = String.size pt + 16). *)
+val sealed    = AesGcm.seal key iv aad pt
+
+(* open' returns SOME plaintext, or NONE on authentication failure
+   (wrong key/IV/AAD or a tampered ciphertext/tag). *)
+val recovered = AesGcm.open' key iv aad sealed   (* : string option *)
 
 (* AES-CBC *)
 val ivCbc = (* 16-byte IV *)
