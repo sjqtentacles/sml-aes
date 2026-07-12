@@ -130,6 +130,59 @@ struct
         (AesBlock.encrypt k128 blk <> AesBlock.encrypt k256 blk)
     in () end
 
+  (* Generator: a raw byte string of exactly n bytes (each char is one byte,
+     0-255, via Char.chr -- never hex). *)
+  fun genBytesLen (n : int) : string Check.gen =
+    Check.map (String.implode o List.map Char.chr) (Check.listOfLen n (Check.choose (0, 255)))
+
+  (* Variable-length raw byte string, 0..300 bytes -- for AES-CTR plaintexts,
+     which need no padding since CTR is a stream cipher. *)
+  val genPt : string Check.gen =
+    Check.bind (Check.choose (0, 300)) genBytesLen
+
+  (* Don't render raw bytes in failure output; length is enough for a
+     property-test show function. *)
+  fun showBytes s = "<" ^ Int.toString (String.size s) ^ " bytes>"
+
+  fun runProps () =
+    let
+      val () = section "AES: properties (sml-check)"
+
+      val () =
+        Harness.check "prop: AES-128 CTR encrypt/decrypt round-trips"
+          (case Check.quickCheck
+                  (Check.forAll
+                     (Check.tuple3 (genBytesLen 16, genBytesLen 16, genPt))
+                     (fn (key, iv, pt) => showBytes key ^ " " ^ showBytes iv ^ " " ^ showBytes pt)
+                     (fn (key, iv, pt) =>
+                        AesCtr.decrypt key iv (AesCtr.encrypt key iv pt) = pt)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+
+      val () =
+        Harness.check "prop: AES-256 CTR encrypt/decrypt round-trips"
+          (case Check.quickCheck
+                  (Check.forAll
+                     (Check.tuple3 (genBytesLen 32, genBytesLen 16, genPt))
+                     (fn (key, iv, pt) => showBytes key ^ " " ^ showBytes iv ^ " " ^ showBytes pt)
+                     (fn (key, iv, pt) =>
+                        AesCtr.decrypt key iv (AesCtr.encrypt key iv pt) = pt)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+
+      val () =
+        Harness.check "prop: AES-128 single-block encrypt/decrypt round-trips"
+          (case Check.quickCheck
+                  (Check.forAll
+                     (Check.tuple2 (genBytesLen 16, genBytesLen 16))
+                     (fn (key, blk) => showBytes key ^ " " ^ showBytes blk)
+                     (fn (key, blk) =>
+                        let val k = AesBlock.expand128 key
+                        in AesBlock.decrypt k (AesBlock.encrypt k blk) = blk end)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+    in () end
+
   fun run () =
     ( runEcb128 ()
     ; runEcb256 ()
@@ -137,5 +190,6 @@ struct
     ; runCtr ()
     ; runGcm ()
     ; runGcmKat ()
-    ; runRoundtrip () )
+    ; runRoundtrip ()
+    ; runProps () )
 end

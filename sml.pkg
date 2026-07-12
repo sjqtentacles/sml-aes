@@ -1,4 +1,5 @@
 package github.com/sjqtentacles/sml-aes
 
 require {
+  github.com/sjqtentacles/sml-check
 }
