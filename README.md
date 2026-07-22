@@ -1,5 +1,7 @@
 # sml-aes
 
+[![CI](https://github.com/sjqtentacles/sml-aes/actions/workflows/ci.yml/badge.svg)](https://github.com/sjqtentacles/sml-aes/actions/workflows/ci.yml)
+
 AES block cipher with ECB, CBC, CTR, and GCM modes in pure Standard ML (FIPS 197)
 
 ## Installation
